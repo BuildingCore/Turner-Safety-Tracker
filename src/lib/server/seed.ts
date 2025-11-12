@@ -1,35 +1,16 @@
-import { db } from './db';
+import { supabase } from './db';
 import { randomUUID } from 'crypto';
 
 export function seedDatabase() {
-  // Clear existing data
-  db.prepare('DELETE FROM rmp_history').run();
-  db.prepare('DELETE FROM rmp_comments').run();
-  db.prepare('DELETE FROM rmp_documents').run();
-  db.prepare('DELETE FROM safety_rmps').run();
-  db.prepare('DELETE FROM annual_data').run();
-  db.prepare('DELETE FROM subcontractors').run();
-  
-  const insertSubcontractor = db.prepare(`
-    INSERT INTO subcontractors (
-      id,
-      trade_pkg,
-      trade_name,
-      fein,
-      current_emr,
-      emr_expiration
-    ) VALUES (?, ?, ?, ?, ?, ?)
-  `);
-  
-  const insertAnnualData = db.prepare(`
-    INSERT INTO annual_data (
-      id,
-      subcontractor_id,
-      year,
-      recordables,
-      manhours
-    ) VALUES (?, ?, ?, ?, ?)
-  `);
+  // Clear existing data in Supabase
+  Promise.all([
+    supabase.from('rmp_history').delete().neq('id', ''),
+    supabase.from('rmp_comments').delete().neq('id', ''),
+    supabase.from('rmp_documents').delete().neq('id', ''),
+    supabase.from('safety_rmps').delete().neq('id', ''),
+    supabase.from('annual_data').delete().neq('id', ''),
+    supabase.from('subcontractors').delete().neq('id', '')
+  ]);
 
   const subcontractorIds: string[] = [];
   const subcontractors = [
@@ -45,7 +26,14 @@ export function seedDatabase() {
   for (const sub of subcontractors) {
     const id = randomUUID();
     subcontractorIds.push(id);
-    insertSubcontractor.run(id, ...sub);
+    supabase.from('subcontractors').insert({
+      id,
+      trade_pkg: sub[0],
+      trade_name: sub[1],
+      fein: sub[2],
+      current_emr: sub[3],
+      emr_expiration: sub[4]
+    });
   }
 
   // Annual data using UUID references
@@ -61,32 +49,16 @@ export function seedDatabase() {
   for (const data of annualData) {
     const subIndex = data[0] as number;
     const annualId = randomUUID();
-    insertAnnualData.run(annualId, subcontractorIds[subIndex], data[1], data[2], data[3]);
+    supabase.from('annual_data').insert({
+      id: annualId,
+      subcontractor_id: subcontractorIds[subIndex],
+      year: data[1],
+      recordables: data[2],
+      manhours: data[3]
+    });
   }
 
   // Insert sample RMPs
-  const insertRMP = db.prepare(`
-    INSERT INTO safety_rmps (
-      id,
-      subcontractor_id,
-      project_name,
-      submitted_date,
-      due_date,
-      completed_date,
-      status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  const insertHistory = db.prepare(`
-    INSERT INTO rmp_history (
-      id,
-      rmp_id,
-      status_to,
-      changed_by,
-      notes
-    ) VALUES (?, ?, ?, ?, ?)
-  `);
-
   const rmps = [
     [0, 'Downtown Plaza', '2024-11-01', '2024-11-15', null, 'Rejected'],
     [1, 'Medical Center Expansion', '2024-11-05', '2024-11-20', null, 'Pending'],
@@ -96,24 +68,30 @@ export function seedDatabase() {
     [5, 'Hotel Construction', '2024-09-20', '2024-09-30', '2024-09-30', 'Canceled']
   ];
 
-  rmps.forEach(rmp => {
+  for (const rmp of rmps) {
     const rmpId = randomUUID();
     const subIndex = rmp[0] as number;
-    const status = rmp[5] as string; // Get the status value
-    
-    // Insert RMP
-    insertRMP.run(rmpId, subcontractorIds[subIndex], ...rmp.slice(1));
-    
+    const status = rmp[5] as string;
+    supabase.from('safety_rmps').insert({
+      id: rmpId,
+      subcontractor_id: subcontractorIds[subIndex],
+      project_name: rmp[1],
+      submitted_date: rmp[2],
+      due_date: rmp[3],
+      completed_date: rmp[4],
+      status,
+      created_by: 'system'
+    });
     // Add initial history entry
     const historyId = randomUUID();
-    insertHistory.run(
-      historyId,
-      rmpId,
-      status, // Use the status variable here
-      'System',
-      'RMP Created'
-    );
-  });
+    supabase.from('rmp_history').insert({
+      id: historyId,
+      rmp_id: rmpId,
+      status_to: status,
+      changed_by: 'system',
+      notes: 'RMP Created'
+    });
+  }
 
-  console.log('Database seeded with UUIDs!');
+  console.log('Supabase database seeded with UUIDs!');
 }

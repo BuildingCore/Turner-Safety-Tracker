@@ -1,6 +1,7 @@
 <script lang="ts">
-  import type { PageData } from './$types';
-  import { enhance } from '$app/forms';
+    import type { PageData } from './$types';
+    import { enhance } from '$app/forms';
+    import { goto } from '$app/navigation';
 
   interface RMP {
     id: string;
@@ -26,17 +27,17 @@
   
   let showCreateModal = $state(false);
   let uploading = $state(false);
-  let selectedFile: File | null = $state(null);
+  let selectedFiles: FileList | null = $state(null);
 
   function openCreateModal() {
     showCreateModal = true;
-    selectedFile = null;
+    selectedFiles = null;
   }
 
   function handleFileChange(event: Event) {
     const input = event.target as HTMLInputElement;
-    if (input.files && input.files[0]) {
-      selectedFile = input.files[0];
+    if (input.files && input.files.length > 0) {
+      selectedFiles = input.files;
     }
   }
 </script>
@@ -98,7 +99,7 @@
 
     <!-- Completed Safety RMPs -->
     <fieldset class="fieldset border border-base-300 rounded-box p-4 mt-4 w-3/4 mb-8">
-        <legend class="fieldset-legend">Completed Safety RMPs</legend>
+        <legend class="fieldset-legend">Completed/Canceled Safety RMPs</legend>
         <div class="overflow-x-auto">
             <table class="table">
                 <thead>
@@ -121,6 +122,7 @@
                         <td>
                             <span class="badge {
                                 rmp.status === 'Approved' ? 'badge-success' : 
+                                rmp.status === 'Canceled' ? 'badge-neutral' :
                                 'badge-neutral'
                             }">
                                 {rmp.status}
@@ -155,18 +157,23 @@
         <h3 class="font-bold text-lg mb-4">Create New Safety RMP</h3>
         
         <form method="POST" action="?/createRMP" enctype="multipart/form-data" use:enhance={() => {
-            uploading = true;
-            return async ({ update }) => {
-                await update();
-                uploading = false;
-                showCreateModal = false;
-            };
+                        uploading = true;
+                        return async ({ result }) => {
+                                uploading = false;
+                                showCreateModal = false;
+                                if (result.type === 'redirect') {
+                                    goto(result.location);
+                                } else {
+                                    // Rehydrate page data instantly
+                                    await import('$app/navigation').then(mod => mod.invalidateAll());
+                                }
+                        };
         }}>
             <div class="form-control mb-4">
-                <label class="label" for="subcontractor_id">
-                    <span class="label-text">Subcontractor</span>
+                <label class="label pb-1" for="subcontractor_id">
+                    <span class="label-text font-semibold">Subcontractor</span>
                 </label>
-                <select name="subcontractor_id" id="subcontractor_id" class="select select-bordered" required>
+                <select name="subcontractor_id" id="subcontractor_id" class="select select-bordered w-full" required>
                     <option value="">Select Subcontractor</option>
                     {#each subcontractors as sub}
                         <option value={sub.id}>{sub.trade_name}</option>
@@ -175,47 +182,58 @@
             </div>
 
             <div class="form-control mb-4">
-                <label class="label" for="project_name">
-                    <span class="label-text">Project Name</span>
+                <label class="label pb-1" for="project_name">
+                    <span class="label-text font-semibold">Project Name</span>
                 </label>
                 <input 
                     type="text" 
                     name="project_name" 
                     id="project_name"
-                    class="input input-bordered" 
+                    class="input input-bordered w-full" 
                     placeholder="Enter project name"
                     required 
                 />
             </div>
 
             <div class="form-control mb-4">
-                <label class="label" for="due_date">
-                    <span class="label-text">Due Date</span>
+                <label class="label pb-1" for="due_date">
+                    <span class="label-text font-semibold">Due Date</span>
                 </label>
                 <input 
                     type="date" 
                     name="due_date" 
                     id="due_date"
-                    class="input input-bordered" 
+                    class="input input-bordered w-full" 
                     required 
                 />
             </div>
 
             <div class="form-control mb-4">
-                <label class="label" for="document">
-                    <span class="label-text">Upload Document (Optional)</span>
+                <label class="label pb-1" for="documents">
+                    <span class="label-text font-semibold">Upload Document (Optional)</span>
                 </label>
                 <input 
                     type="file" 
-                    name="document" 
-                    id="document"
+                    id="documents"
+                    name="documents" 
+                    multiple
                     class="file-input file-input-bordered w-full"
                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                     onchange={handleFileChange}
                 />
-                {#if selectedFile}
+                {#if selectedFiles && selectedFiles.length > 0}
                     <div class="label">
-                        <span class="label-text-alt">Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                        <span class="label-text-alt">
+                            {selectedFiles.length} file(s) selected
+                            ({(Array.from(selectedFiles).reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} MB total)
+                        </span>
+                    </div>
+                    <div class="mt-2 space-y-1">
+                        {#each Array.from(selectedFiles) as file}
+                            <div class="text-xs text-base-content/70">
+                                • {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                            </div>
+                        {/each}
                     </div>
                 {/if}
             </div>

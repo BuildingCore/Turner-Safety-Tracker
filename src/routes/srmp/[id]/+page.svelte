@@ -2,6 +2,50 @@
   import type { PageData } from './$types';
   import { enhance } from '$app/forms';
 
+  // SvelteKit enhance callback for comment form
+  function handleCommentEnhance(input: any) {
+    submittingComment = true;
+    // Log the FormData being sent to the server
+    if (input && input.formData) {
+      const sentData: Record<string, any> = {};
+      for (const pair of input.formData.entries()) {
+        sentData[pair[0]] = pair[1];
+      }
+      console.log('Comment form sending data to server:', sentData);
+    }
+    const { result } = input;
+    console.debug('Comment form enhance input:', input);
+    if (!result) {
+      console.error('No response from server:', input);
+      commentFormError = 'No response from server.';
+      commentFormSuccess = '';
+      submittingComment = false;
+      return;
+    }
+    if (result.type === 'error') {
+      console.error('Comment form error:', result);
+      commentFormError = result.data?.error || result.error?.message || JSON.stringify(result) || 'Failed to add comment.';
+      commentFormSuccess = '';
+      submittingComment = false;
+      return;
+    }
+    // Accept both { type: 'success' } and { success: true } for compatibility
+    if (result.type === 'success' || result.success === true) {
+      console.info('Comment form success:', result);
+      commentFormSuccess = 'Comment posted successfully!';
+      commentFormError = '';
+      newComment = '';
+      submittingComment = false;
+      import('$app/navigation').then(mod => mod.invalidateAll());
+      return;
+    }
+    // Unexpected response
+    console.warn('Comment form unexpected response:', result);
+    commentFormError = 'Unexpected server response.';
+    commentFormSuccess = '';
+    submittingComment = false;
+  }
+
   let { data } = $props<{ data: PageData }>();
   
   let showUploadModal = $state(false);
@@ -10,7 +54,11 @@
   
   let newComment = $state('');
   let submittingComment = $state(false);
-  
+
+  // Add these two local variables for comment form feedback (must use $state for reactivity)
+  let commentFormError = $state('');
+  let commentFormSuccess = $state('');
+
   let showStatusModal = $state(false);
   let selectedStatus = $state('');
   let statusNotes = $state('');
@@ -143,6 +191,18 @@
             <p class="text-sm text-base-content/70">Completed Date</p>
             <p class="font-semibold">{data.rmp.completed_date || 'Not completed'}</p>
           </div>
+          
+          <div>
+            <p class="text-sm text-base-content/70">Created By</p>
+            {#if data.rmp.creator_name}
+              <p class="font-semibold">{data.rmp.creator_name}</p>
+              {#if data.rmp.creator_job_title}
+                <p class="text-xs italic text-base-content/70">{data.rmp.creator_job_title}</p>
+              {/if}
+            {:else}
+              <p class="font-semibold text-base-content/50">System</p>
+            {/if}
+          </div>
         </div>
 
         <!-- Column 3: Safety Metrics -->
@@ -255,18 +315,20 @@
   <div class="card bg-base-100 shadow-xl">
     <div class="card-body">
       <h2 class="card-title text-xl mb-4">Activity Timeline</h2>
-      
-      <!-- Add Comment Form (only if status allows) -->
       {#if canAddContent}
-        <div class="bg-base-200 p-4 rounded-lg mb-6">
-          <form method="POST" action="?/addComment" use:enhance={() => {
-            submittingComment = true;
-            return async ({ update }) => {
-              await update();
-              submittingComment = false;
-              newComment = '';
-            };
-          }}>
+        <div>
+          {#if commentFormError}
+            <div class="alert alert-error mb-3">
+              <span>{commentFormError}</span>
+            </div>
+          {/if}
+          {#if commentFormSuccess}
+            <div class="alert alert-success mb-3">
+              <span>{commentFormSuccess}</span>
+            </div>
+          {/if}
+
+          <form method="POST" action="?/addComment" use:enhance={handleCommentEnhance}>
             <div class="form-control mb-3">
               <label class="label" for="comment-textarea">
                 <span class="label-text">Add Comment</span>
@@ -292,16 +354,26 @@
           </form>
         </div>
       {:else}
-        <div class="alert alert-info mb-6">
+        <div class="alert {
+          data.rmp.status === 'Approved' ? 'alert-success' :
+          data.rmp.status === 'Rejected' ? 'alert-error' :
+          'alert-info'
+        } mb-6">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            {#if data.rmp.status === 'Approved'}
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            {:else if data.rmp.status === 'Rejected'}
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            {:else}
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            {/if}
           </svg>
           <span>This RMP is {data.rmp.status.toLowerCase()}. No additional comments or documents can be added.</span>
         </div>
       {/if}
       
       <!-- Timeline -->
-      {#if timeline.length > 0}
+  {#if data.rmp && Array.isArray(timeline) && timeline.length > 0}
         <div class="space-y-4">
           {#each timeline as item}
             {#if item.type === 'history'}
@@ -322,8 +394,15 @@
                     {/if}
                   </div>
                   <div class="text-right text-sm text-base-content/70">
-                    <p>{entry.changed_by}</p>
-                    <p>{new Date(entry.changed_at).toLocaleString()}</p>
+                    {#if entry.full_name}
+                      <p class="font-semibold">{entry.full_name}</p>
+                      {#if entry.job_title}
+                        <p class="text-xs italic">{entry.job_title}</p>
+                      {/if}
+                    {:else}
+                      <p>System</p>
+                    {/if}
+                    <p class="text-xs mt-1">{new Date(entry.changed_at).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
@@ -336,8 +415,15 @@
                     <p class="text-sm mt-1 whitespace-pre-wrap">{comment.comment}</p>
                   </div>
                   <div class="text-right text-sm text-base-content/70">
-                    <p>{comment.created_by}</p>
-                    <p>{new Date(comment.created_at).toLocaleString()}</p>
+                    {#if comment.full_name}
+                      <p class="font-semibold">{comment.full_name}</p>
+                      {#if comment.job_title}
+                        <p class="text-xs italic">{comment.job_title}</p>
+                      {/if}
+                    {:else}
+                      <p>Unknown User</p>
+                    {/if}
+                    <p class="text-xs mt-1">{new Date(comment.created_at).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
@@ -406,7 +492,7 @@
           id="status-notes"
           name="notes"
           bind:value={statusNotes}
-          class="textarea textarea-bordered h-24" 
+          class="textarea textarea-bordered h-24 w-full" 
           placeholder="Add notes about this status change..."
           disabled={updatingStatus}
         ></textarea>
@@ -450,13 +536,14 @@
     <h3 class="font-bold text-lg mb-4">Upload Documents</h3>
     
     <form method="POST" action="?/uploadDocuments" enctype="multipart/form-data" use:enhance={() => {
-      uploading = true;
-      return async ({ update }) => {
-        await update();
-        uploading = false;
-        showUploadModal = false;
-        selectedFiles = null;
-      };
+            uploading = true;
+            return async ({ update }) => {
+              await update();
+              await import('$app/navigation').then(mod => mod.invalidateAll());
+              uploading = false;
+              showUploadModal = false;
+              selectedFiles = null;
+            };
     }}>
       <div class="form-control mb-4">
         <label class="label" for="documents-input">

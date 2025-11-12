@@ -185,10 +185,11 @@
               {#if editingRow === sub.id}
                 <td colspan={4 + data.years.length * 2 + 3}>
                     <form method="POST" action="?/updateSubcontractor" use:enhance={() => {
-                    return async ({ update }) => {
-                        await update();
-                        cancelEditing();
-                    };
+          return async ({ update }) => {
+            await update();
+            await import('$app/navigation').then(mod => mod.invalidateAll());
+            cancelEditing();
+          };
                     }}>
                     <input type="hidden" name="id" value={sub.id} />
                     <table class="table">
@@ -282,6 +283,7 @@
       <form method="POST" action="?/addNewYear" use:enhance={() => {
         return async ({ update }) => {
           await update();
+          await import('$app/navigation').then(mod => mod.invalidateAll());
           showAddYearModal = false;
           newRecordables = 0;
           newManhours = 0;
@@ -352,6 +354,7 @@
       <form method="POST" action="?/addSubcontractor" use:enhance={() => {
         return async ({ update }) => {
           await update();
+          await import('$app/navigation').then(mod => mod.invalidateAll());
           closeAddSubcontractorModal();
         };
       }}>

@@ -40,7 +40,7 @@
   });
 </script>
 
-{#if breadcrumbs().length > 1}
+{#if breadcrumbs().length > 0 && $page.url.pathname !== '/profile'}
   <div class="breadcrumbs text-sm px-6 py-4">
     <ul>
       {#each breadcrumbs() as crumb, index}
