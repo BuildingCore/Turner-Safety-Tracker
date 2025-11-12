@@ -163,10 +163,10 @@
             };
         }}>
             <div class="form-control mb-4">
-                <label class="label">
+                <label class="label" for="subcontractor_id">
                     <span class="label-text">Subcontractor</span>
                 </label>
-                <select name="subcontractor_id" class="select select-bordered" required>
+                <select name="subcontractor_id" id="subcontractor_id" class="select select-bordered" required>
                     <option value="">Select Subcontractor</option>
                     {#each subcontractors as sub}
                         <option value={sub.id}>{sub.trade_name}</option>
@@ -175,12 +175,13 @@
             </div>
 
             <div class="form-control mb-4">
-                <label class="label">
+                <label class="label" for="project_name">
                     <span class="label-text">Project Name</span>
                 </label>
                 <input 
                     type="text" 
                     name="project_name" 
+                    id="project_name"
                     class="input input-bordered" 
                     placeholder="Enter project name"
                     required 
@@ -188,32 +189,34 @@
             </div>
 
             <div class="form-control mb-4">
-                <label class="label">
+                <label class="label" for="due_date">
                     <span class="label-text">Due Date</span>
                 </label>
                 <input 
                     type="date" 
                     name="due_date" 
+                    id="due_date"
                     class="input input-bordered" 
                     required 
                 />
             </div>
 
             <div class="form-control mb-4">
-                <label class="label">
+                <label class="label" for="document">
                     <span class="label-text">Upload Document (Optional)</span>
                 </label>
                 <input 
                     type="file" 
                     name="document" 
+                    id="document"
                     class="file-input file-input-bordered w-full"
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                     onchange={handleFileChange}
                 />
                 {#if selectedFile}
-                    <label class="label">
+                    <div class="label">
                         <span class="label-text-alt">Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</span>
-                    </label>
+                    </div>
                 {/if}
             </div>
 

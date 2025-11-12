@@ -24,10 +24,23 @@
   let editingRow: number | null = $state(null);
   let editingCell: { subId: number, year: number } | null = $state(null);
   let showAddYearModal = $state(false);
+  let showAddSubcontractorModal = $state(false);
   let selectedSubcontractor: number | null = $state(null);
   let newYear = $state(new Date().getFullYear() + 1);
   let newRecordables = $state(0);
   let newManhours = $state(0);
+  
+  // New subcontractor form data
+  let newSubcontractor = $state({
+    trade_pkg: '',
+    trade_name: '',
+    fein: '',
+    current_emr: '',
+    emr_expiration: ''
+  });
+  
+  // Annual data for new subcontractor
+  let newSubAnnualData = $state<{[year: number]: {recordables: number, manhours: number}}>({});
   
   function getDataForYear(annual_data: AnnualData[], year: number) {
     return annual_data.find(d => d.year === year) || { recordables: 0, manhours: 0 };
@@ -69,6 +82,34 @@
     newManhours = 0;
     showAddYearModal = true;
   }
+
+  function openAddSubcontractorModal() {
+    newSubcontractor = {
+      trade_pkg: '',
+      trade_name: '',
+      fein: '',
+      current_emr: '1.0',
+      emr_expiration: ''
+    };
+    // Initialize annual data for all years
+    newSubAnnualData = {};
+    data.years.forEach(year => {
+      newSubAnnualData[year] = { recordables: 0, manhours: 0 };
+    });
+    showAddSubcontractorModal = true;
+  }
+
+  function closeAddSubcontractorModal() {
+    showAddSubcontractorModal = false;
+    newSubcontractor = {
+      trade_pkg: '',
+      trade_name: '',
+      fein: '',
+      current_emr: '',
+      emr_expiration: ''
+    };
+    newSubAnnualData = {};
+  }
 </script>
 
 <div class="grid grid-cols-1 place-items-center mb-6">
@@ -99,7 +140,17 @@
         </div>
     </div>
 
-    <div class="border border-base-300 rounded-lg shadow-md w-3/4 mt-12 mx-24 overflow-x-auto max-h-96 overflow-y-auto">
+    <!-- Add Subcontractor Button -->
+    <div class="w-3/4 mt-6 flex justify-end">
+      <button class="btn btn-primary" onclick={() => openAddSubcontractorModal()}>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Add New Subcontractor
+      </button>
+    </div>
+
+    <div class="border border-base-300 rounded-lg shadow-md w-3/4 mt-4 mx-24 overflow-x-auto max-h-96 overflow-y-auto">
       <table class="table table-pin-rows">
         <thead>
           <tr>
@@ -287,6 +338,142 @@
         <div class="modal-action">
           <button type="button" class="btn" onclick={() => showAddYearModal = false}>Cancel</button>
           <button type="submit" class="btn btn-primary">Add Year</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
+<!-- Add New Subcontractor Modal -->
+{#if showAddSubcontractorModal}
+  <div class="modal modal-open">
+    <div class="modal-box max-w-4xl">
+      <h3 class="font-bold text-lg mb-4">Add New Subcontractor</h3>
+      <form method="POST" action="?/addSubcontractor" use:enhance={() => {
+        return async ({ update }) => {
+          await update();
+          closeAddSubcontractorModal();
+        };
+      }}>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="label" for="trade_pkg">
+              <span class="label-text">Trade Package</span>
+            </label>
+            <input 
+              id="trade_pkg"
+              type="text" 
+              name="trade_pkg" 
+              bind:value={newSubcontractor.trade_pkg} 
+              class="input input-bordered w-full" 
+              required 
+            />
+          </div>
+          <div>
+            <label class="label" for="trade_name">
+              <span class="label-text">Trade Name</span>
+            </label>
+            <input 
+              id="trade_name"
+              type="text" 
+              name="trade_name" 
+              bind:value={newSubcontractor.trade_name} 
+              class="input input-bordered w-full" 
+              required 
+            />
+          </div>
+          <div>
+            <label class="label" for="fein">
+              <span class="label-text">FEIN</span>
+            </label>
+            <input 
+              id="fein"
+              type="text" 
+              name="fein" 
+              bind:value={newSubcontractor.fein} 
+              class="input input-bordered w-full" 
+              placeholder="XX-XXXXXXX"
+              required 
+            />
+          </div>
+          <div>
+            <label class="label" for="current_emr">
+              <span class="label-text">Current EMR</span>
+            </label>
+            <input 
+              id="current_emr"
+              type="text" 
+              name="current_emr" 
+              bind:value={newSubcontractor.current_emr} 
+              class="input input-bordered w-full" 
+              step="0.01"
+              required 
+            />
+          </div>
+          <div class="col-span-2">
+            <label class="label" for="emr_expiration">
+              <span class="label-text">EMR Expiration Date</span>
+            </label>
+            <input 
+              id="emr_expiration"
+              type="date" 
+              name="emr_expiration" 
+              bind:value={newSubcontractor.emr_expiration} 
+              class="input input-bordered w-full" 
+              required 
+            />
+          </div>
+        </div>
+
+        <div class="divider">Annual Safety Data</div>
+
+        <div class="overflow-x-auto mb-4">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                {#each data.years as year}
+                  <th colspan="2" class="text-center">{year}</th>
+                {/each}
+              </tr>
+              <tr>
+                {#each data.years as year}
+                  <th>Recordables</th>
+                  <th>Manhours</th>
+                {/each}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {#each data.years as year}
+                  <td>
+                    <input 
+                      type="number" 
+                      name="recordables_{year}" 
+                      bind:value={newSubAnnualData[year].recordables}
+                      class="input input-xs input-bordered w-20" 
+                      min="0"
+                      required 
+                    />
+                  </td>
+                  <td>
+                    <input 
+                      type="number" 
+                      name="manhours_{year}" 
+                      bind:value={newSubAnnualData[year].manhours}
+                      class="input input-xs input-bordered w-24" 
+                      min="0"
+                      required 
+                    />
+                  </td>
+                {/each}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="modal-action">
+          <button type="button" class="btn" onclick={() => closeAddSubcontractorModal()}>Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Subcontractor</button>
         </div>
       </form>
     </div>
