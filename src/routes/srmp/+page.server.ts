@@ -55,86 +55,56 @@ export const load: PageServerLoad = () => {
 export const actions: Actions = {
   createRMP: async ({ request }) => {
     const formData = await request.formData();
-    const subcontractor_id = formData.get('subcontractor_id');
-    const project_name = formData.get('project_name');
-    const due_date = formData.get('due_date');
-    const file = formData.get('document') as File;
+    const subcontractorId = formData.get('subcontractor_id') as string;
+    const projectName = formData.get('project_name') as string;
+    const dueDate = formData.get('due_date') as string;
 
-    if (!subcontractor_id || !project_name || !due_date) {
-      return fail(400, { error: 'Missing required fields' });
+    // Validate inputs
+    if (!subcontractorId || !projectName) {
+      return fail(400, { error: 'Subcontractor and Project Name are required' });
     }
 
-    try {
-      const rmpId = randomUUID();
+    const rmpId = randomUUID();
+    const submittedDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 
-      // Insert RMP
-      db.prepare(`
-        INSERT INTO safety_rmps (
-          id,
-          subcontractor_id,
-          project_name,
-          submitted_date,
-          due_date,
-          status
-        ) VALUES (?, ?, ?, date('now'), ?, 'Pending')
-      `).run(rmpId, subcontractor_id, project_name, due_date);
+    // Insert new RMP
+    db.prepare(`
+      INSERT INTO safety_rmps (
+        id,
+        subcontractor_id,
+        project_name,
+        submitted_date,
+        due_date,
+        status
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      rmpId,
+      subcontractorId,
+      projectName,
+      submittedDate,
+      dueDate || null,
+      'Pending'
+    );
 
-      // Handle file upload if provided
-      if (file && file.size > 0) {
-        const uploadDir = './uploads/rmps';
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
+    // Create initial history entry
+    const historyId = randomUUID();
+    db.prepare(`
+      INSERT INTO rmp_history (
+        id,
+        rmp_id,
+        status_to,
+        changed_by,
+        notes
+      ) VALUES (?, ?, ?, ?, ?)
+    `).run(
+      historyId,
+      rmpId,
+      'Pending',
+      'Current User',
+      'RMP Created'
+    );
 
-        const fileName = `rmp_${rmpId}_${Date.now()}_${file.name}`;
-        const filePath = path.join(uploadDir, fileName);
-        const buffer = await file.arrayBuffer();
-        fs.writeFileSync(filePath, Buffer.from(buffer));
-
-        const docId = randomUUID();
-        // Insert document record
-        db.prepare(`
-          INSERT INTO rmp_documents (
-            id,
-            rmp_id,
-            document_name,
-            file_path,
-            file_size,
-            mime_type,
-            uploaded_by
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          docId,
-          rmpId,
-          file.name,
-          `/uploads/rmps/${fileName}`,
-          file.size,
-          file.type,
-          'System User'
-        );
-      }
-
-      const historyId = randomUUID();
-      // Add history record
-      db.prepare(`
-        INSERT INTO rmp_history (
-          id,
-          rmp_id,
-          status_to,
-          changed_by,
-          notes
-        ) VALUES (?, ?, 'Pending', 'System', 'RMP Created')
-      `).run(historyId, rmpId);
-
-      // Redirect to the new RMP detail page
-      throw redirect(303, `/srmp/${rmpId}`);
-    } catch (error) {
-      // If it's a redirect, re-throw it
-      if (error instanceof Response) {
-        throw error;
-      }
-      console.error('Error creating RMP:', error);
-      return fail(500, { error: 'Failed to create RMP' });
-    }
+    // Redirect to the new RMP detail page
+    redirect(303, `/srmp/${rmpId}`);
   }
 };
