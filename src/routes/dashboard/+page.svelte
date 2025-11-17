@@ -142,7 +142,7 @@
 
     <div class="w-11/12 mt-6 flex flex-row justify-between items-center">
       <!-- Search input on far left -->
-      <input type="text" placeholder="Search subcontractors..." class="input input-bordered w-full max-w-xs" />
+      <input type="text" placeholder="Search subcontractors..." class="input input-bordered w-full max-w-xs mb-4" />
 
       <!-- Buttons on far right -->
       <div class="flex flex-row gap-4 items-center">
