@@ -113,7 +113,7 @@
 </script>
 
 <div class="grid grid-cols-1 place-items-center mb-6">
-    <h1 class="mt-8 text-3xl"><strong>🚨 Subcontractor Safety Dashboard 🚨</strong></h1>
+    <h1 class="mt-8 text-3xl"><strong>Subcontractor Safety Dashboard</strong></h1>
 
     <!-- Key Performance Indicators -->
     <div class="grid grid-cols-3 gap-4 mt-6">
@@ -140,21 +140,25 @@
         </div>
     </div>
 
+    <div class="w-11/12 mt-6 flex flex-row justify-between items-center">
+      <!-- Search input on far left -->
+      <input type="text" placeholder="Search subcontractors..." class="input input-bordered w-full max-w-xs" />
 
-    <!-- Add Subcontractor Button -->
-    <div class="w-3/4 mt-6 flex justify-end">
-      <a href="/srmp" class="mr-6">
-                <button class="btn btn-error">Safety Risk Management Plans</button>
-      </a>
-      <button class="btn btn-primary" onclick={() => openAddSubcontractorModal()}>
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-        Add New Subcontractor
-      </button>
+      <!-- Buttons on far right -->
+      <div class="flex flex-row gap-4 items-center">
+        <a href="/srmp">
+          <button class="btn btn-error">Safety Risk Management Plans</button>
+        </a>
+        <button class="btn btn-primary" onclick={() => openAddSubcontractorModal()}>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Add New Subcontractor
+        </button>
+      </div>
     </div>
 
-    <div class="border border-base-300 rounded-lg shadow-md w-3/4 mt-4 mx-24 overflow-x-auto max-h-96 overflow-y-auto">
+    <div class="border border-base-300 rounded-lg shadow-md w-11/12 mt-4 mx-24 overflow-x-auto max-h-192 overflow-y-auto">
       <table class="table table-pin-rows">
         <thead>
           <tr>
@@ -163,24 +167,11 @@
             <th class="min-w-32">FEIN</th>
             <th>3-YR TRIR</th>
             {#each data.years as year}
-              <th colspan="2" class="text-center">{year}</th>
+              <th>{year} Recordables</th>
+              <th>{year} Manhours</th>
             {/each}
             <th>Current EMR</th>
             <th>EMR Expiration Date</th>
-            <th>Actions</th>
-          </tr>
-          <tr>
-            <th></th>
-            <th></th>
-            <th></th>
-            <th></th>
-            {#each data.years as year}
-              <th>Recordables</th>
-              <th>Manhours</th>
-            {/each}
-            <th></th>
-            <th></th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -256,22 +247,18 @@
                   <td>{yearData.manhours.toLocaleString()}</td>
                 {/each}
                 <td>{sub.current_emr}</td>
-                <td>
+                <!-- <td>
                   {sub.submitted_date ? new Date(sub.submitted_date).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
-                </td>
-                <td>
+                </td> -->
+                <!-- <td>
                   {sub.due_date ? new Date(sub.due_date).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
-                </td>
+                </td> -->
                 <td>
                   {sub.emr_expiration
                     ? new Date(sub.emr_expiration).toLocaleString(undefined, {
                         year: 'numeric',
                         month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        // fractionalSecondDigits: 0
+                        day: 'numeric'
                       })
                     : ''}
                 </td>

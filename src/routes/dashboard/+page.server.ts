@@ -7,12 +7,15 @@ import { randomUUID } from 'crypto';
 // seedDatabase();
 
 export const load: PageServerLoad = () => {
-  // Get all subcontractors
-  return (async () => {
-    const { data: subcontractors, error: subError } = await supabase
-      .from('subcontractors')
-      .select('*')
-      .order('trade_name');
+  // Get all subcontractors, with optional search
+  return async ({ url }: { url: URL }) => {
+    const search = url.searchParams.get('search')?.trim() || '';
+    let query = supabase.from('subcontractors').select('*').order('trade_name');
+    if (search) {
+      query = query.ilike('trade_name', `%${search}%`)
+        .or(`trade_pkg.ilike.%${search}%,fein.ilike.%${search}%`);
+    }
+    const { data: subcontractors, error: subError } = await query;
     const { data: allAnnualData, error: annualError } = await supabase
       .from('annual_data')
       .select('*')
@@ -39,7 +42,7 @@ export const load: PageServerLoad = () => {
       subcontractors: subcontractorsWithMetrics,
       years
     };
-  })();
+  };
 };
 
 export const actions: Actions = {
