@@ -65,8 +65,12 @@
                     <tr>
                         <td>{rmp.subcontractor_name}</td>
                         <td>{rmp.project_name}</td>
-                        <td>{rmp.submitted_date}</td>
-                        <td>{rmp.due_date || '-'}</td>
+                        <td>
+                            {rmp.submitted_date ? new Date(rmp.submitted_date).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric'}) : '---'}
+                        </td>
+                        <td>
+                            {rmp.due_date ? new Date(rmp.due_date).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric'}) : '---'}
+                        </td>
                         <td>
                             <span class="badge {
                                 rmp.status === 'Rejected' ? 'badge-error' : 
@@ -117,8 +121,10 @@
                     <tr>
                         <td>{rmp.subcontractor_name}</td>
                         <td>{rmp.project_name}</td>
-                        <td>{rmp.submitted_date}</td>
-                        <td>{rmp.completed_date || '-'}</td>
+                        <td>
+                            {rmp.submitted_date ? new Date(rmp.submitted_date).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric'}) : '---'}
+                        </td>
+                        <td>{rmp.completed_date ? new Date(rmp.completed_date).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric'}) : '---'}</td>
                         <td>
                             <span class="badge {
                                 rmp.status === 'Approved' ? 'badge-success' : 
@@ -159,14 +165,19 @@
         <form method="POST" action="?/createRMP" enctype="multipart/form-data" use:enhance={() => {
                         uploading = true;
                         return async ({ result }) => {
-                                uploading = false;
+                            console.log('Enhance callback START');
+                            uploading = false;
+                            console.log('Enhance callback result:', result);
+                            if (result.type === 'redirect') {
+                                console.log('Received redirect result:', result);
+                                console.log('Redirect location:', result.location);
+                                await goto(result.location);
                                 showCreateModal = false;
-                                if (result.type === 'redirect') {
-                                    goto(result.location);
-                                } else {
-                                    // Rehydrate page data instantly
-                                    await import('$app/navigation').then(mod => mod.invalidateAll());
-                                }
+                            } else {
+                                // Rehydrate page data instantly
+                                await import('$app/navigation').then(mod => mod.invalidateAll());
+                                showCreateModal = false;
+                            }
                         };
         }}>
             <div class="form-control mb-4">
@@ -237,6 +248,18 @@
                     </div>
                 {/if}
             </div>
+            
+            <div class="form-control mb-4">
+                <label class="label pb-1" for="safety_manager_id">
+                    <span class="label-text font-semibold">Assign Safety Manager</span>
+                </label>
+                <select name="safety_manager_id" id="safety_manager_id" class="select select-bordered w-full" required>
+                    <option value="">Select Safety Manager</option>
+                    {#each data.safetyManagers as manager}
+                        <option value={manager.id}>{manager.full_name} {manager.job_title ? `(${manager.job_title})` : ''}</option>
+                    {/each}
+                </select>
+            </div>
 
             <div class="modal-action">
                 <button 
@@ -252,7 +275,12 @@
                     class="btn btn-primary"
                     disabled={uploading}
                 >
-                    {uploading ? 'Creating...' : 'Create RMP'}
+                    {#if uploading}
+                        <span class="loading loading-spinner loading-sm text-base-content"></span>
+                        <span class="ml-2">Creating...</span>
+                    {:else}
+                        Create RMP
+                    {/if}
                 </button>
             </div>
         </form>

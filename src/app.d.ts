@@ -2,7 +2,6 @@ import { Session, SupabaseClient, User } from '@supabase/supabase-js'
 
 export interface UserProfile {
 	id: string
-	user_id: string
 	full_name: string
 	job_title: string
 	created_at: string

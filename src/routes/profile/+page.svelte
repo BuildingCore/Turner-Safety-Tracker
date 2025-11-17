@@ -52,18 +52,17 @@
 			<div class="space-y-4">
 				<!-- Email (Read-only) -->
 				<div class="form-control">
-					<label class="label pb-1">
+					<label class="label pb-1" for="email">
 						<span class="label-text font-semibold">Email Address</span>
 					</label>
 					<input 
 						type="email" 
+						id="email"
 						value={data.user?.email || ''} 
 						class="input input-bordered w-full" 
 						disabled 
 					/>
-					<label class="label">
-						<span class="label-text-alt text-base-content/70">Email cannot be changed</span>
-					</label>
+					<span class="label label-text-alt text-base-content/70">Email cannot be changed</span>
 				</div>
 
 				<!-- Profile Form -->

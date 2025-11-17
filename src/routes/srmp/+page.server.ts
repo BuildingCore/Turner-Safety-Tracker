@@ -27,6 +27,13 @@ export const load: PageServerLoad = async ({ locals }) => {
     .from('subcontractors')
     .select('id, trade_name')
     .order('trade_name');
+  
+    // Get Safety Manager users for dropdown
+    const { data: safetyManagers, error: smError } = await supabase
+      .from('user_profiles')
+      .select('id, full_name, job_title')
+      .eq('job_title', 'Safety Manager')
+      .order('full_name');
 
   // Map joined subcontractor name to subcontractor_name for table display
   const mapRMPs = (rmps: any[], completed = false) =>
@@ -38,103 +45,138 @@ export const load: PageServerLoad = async ({ locals }) => {
   return {
     activeRMPs: mapRMPs(activeRMPs ?? []),
     completedRMPs: mapRMPs(completedRMPs ?? [], true),
-    subcontractors: subcontractors || []
+    subcontractors: subcontractors || [],
+    safetyManagers: safetyManagers || []
   };
 };
 
 export const actions: Actions = {
   createRMP: async ({ request, locals }) => {
     try {
+      console.log('--- createRMP: start ---');
       const { user } = await locals.safeGetSession();
+      console.log('User from session:', user);
       if (!user) {
+        console.log('No user found, aborting');
         return fail(401, { error: 'You must be logged in to create an RMP' });
       }
+      // Fetch user_profile by auth id
+      console.log('Fetching user profile for user_id:', user.id);
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+      if (profileError) {
+        console.error('Supabase profile error:', profileError);
+      }
+      console.log('Profile result:', profile);
+      if (!profile) {
+        console.log('No profile found, aborting');
+        return fail(404, { error: 'User profile not found' });
+      }
       const formData = await request.formData();
+      console.log('FormData received:', formData);
       const subcontractorId = formData.get('subcontractor_id') as string;
+      const safetyManagerId = formData.get('safety_manager_id') as string;
       const projectName = formData.get('project_name') as string;
       const dueDate = formData.get('due_date') as string;
       const documents = formData.getAll('documents') as File[];
+      console.log('Parsed form values:', {subcontractorId, safetyManagerId, projectName, dueDate, documents});
       // Validate inputs
-      if (!subcontractorId || !projectName) {
-        return fail(400, { error: 'Subcontractor and Project Name are required' });
+      if (!subcontractorId || !projectName || !safetyManagerId) {
+        console.log('Missing required fields, aborting');
+        return fail(400, { error: 'Subcontractor, Project Name, and Safety Manager are required' });
       }
       const rmpId = randomUUID();
-      const submittedDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-      // Insert new RMP into Supabase
+      const submittedDate = new Date().toISOString().split('T')[0];
+      console.log('Inserting new RMP:', {rmpId, subcontractorId, safetyManagerId, projectName, submittedDate, dueDate, created_by: profile.id});
       const { error: rmpError } = await supabase
         .from('safety_rmps')
         .insert({
           id: rmpId,
           subcontractor_id: subcontractorId,
+          safety_manager_id: safetyManagerId,
           project_name: projectName,
           submitted_date: submittedDate,
           due_date: dueDate || null,
           status: 'Pending',
-          created_by: user.id
+          created_by: profile.id
         });
       if (rmpError) {
         console.error('Supabase RMP error:', rmpError);
         return fail(500, { error: 'Failed to create RMP', details: rmpError.message });
       }
+      console.log('RMP inserted successfully');
       // Create initial history entry in Supabase
       const historyId = randomUUID();
+      console.log('Inserting RMP history:', {historyId, rmpId, changed_by: profile.id});
       const { error: historyError } = await supabase
         .from('rmp_history')
         .insert({
           id: historyId,
           rmp_id: rmpId,
           status_to: 'Pending',
-          changed_by: user.id,
+          changed_by: profile.id,
           notes: 'RMP Created'
         });
       if (historyError) {
         console.error('Supabase history error:', historyError);
         return fail(500, { error: 'Failed to create RMP history', details: historyError.message });
       }
-      // Handle multiple file uploads
+      console.log('RMP history inserted successfully');
+      // Handle multiple file uploads to Supabase Storage
       if (documents.length > 0) {
-        const uploadDir = path.join(process.cwd(), 'uploads', 'rmps');
-        // Ensure upload directory exists
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
         for (const file of documents) {
-          // Skip if no file or empty file
           if (!file || file.size === 0) continue;
-          const fileExt = path.extname(file.name);
-          const fileName = `${rmpId}_${randomUUID()}${fileExt}`;
-          const filePath = path.join(uploadDir, fileName);
-          // Write file to disk
-          try {
-            const buffer = Buffer.from(await file.arrayBuffer());
-            fs.writeFileSync(filePath, buffer);
-          } catch (fileError) {
-            console.error('File write error:', fileError);
-            const message = typeof fileError === 'object' && fileError && 'message' in fileError ? (fileError as any).message : String(fileError);
-            return fail(500, { error: 'Failed to save file', details: message });
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${rmpId}_${randomUUID()}.${fileExt}`;
+          console.log('Uploading file to Supabase Storage:', fileName, file);
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('safety-docs')
+            .upload(fileName, file, {
+              cacheControl: '3600',
+              upsert: false
+            });
+          if (uploadError) {
+            console.error('Supabase Storage upload error:', uploadError);
+            return fail(500, { error: 'Failed to upload document', details: uploadError.message });
           }
+          console.log('File uploaded, getting public URL:', fileName);
+          const { data: publicUrlData } = supabase.storage
+            .from('safety-docs')
+            .getPublicUrl(fileName);
+          console.log('Public URL data:', publicUrlData);
           // Insert document record in Supabase
           const docId = randomUUID();
+          console.log('Inserting document metadata:', {docId, rmpId, fileName: file.name, filePath: publicUrlData?.publicUrl || fileName, fileSize: file.size, uploaded_by: profile.id});
           const { error: docError } = await supabase
             .from('rmp_documents')
             .insert({
               id: docId,
               rmp_id: rmpId,
-              document_name: file.name,
-              file_path: `uploads/rmps/${fileName}`,
+              file_name: file.name,
+              file_path: publicUrlData?.publicUrl || fileName,
               file_size: file.size,
-              uploaded_by: user.id
+              uploaded_by: profile.id
             });
           if (docError) {
             console.error('Supabase document error:', docError);
-            return fail(500, { error: 'Failed to save document', details: docError.message });
+            return fail(500, { error: 'Failed to save document metadata', details: docError.message });
           }
+          console.log('Document metadata inserted successfully');
         }
       }
+      console.log('All documents processed');
       // Redirect to the new RMP detail page
-  return redirect(303, `/srmp/${rmpId}/`);
+      console.log('Redirecting to new RMP detail page:', `/srmp/${rmpId}/`);
+      return redirect(303, `/srmp/${rmpId}/`);
     } catch (err: any) {
-      console.error('Create RMP error:', err);
+      // SvelteKit's redirect throws an object, not an Error instance
+      if (err instanceof redirect || err?.name === 'Redirect' || err?.status === 303) {
+        throw err;
+      }
+      console.error('Create RMP error (catch):', err);
       return fail(500, { error: 'Unexpected error creating RMP', details: err?.message });
     }
   }

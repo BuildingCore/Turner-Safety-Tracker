@@ -49,7 +49,7 @@
   let { data } = $props<{ data: PageData }>();
   
   let showUploadModal = $state(false);
-  let selectedFiles: FileList | null = $state(null);
+  let selectedFiles: File[] = $state([]);
   let uploading = $state(false);
   
   let newComment = $state('');
@@ -94,17 +94,21 @@
   function getFilenameFromPath(filePath: string): string {
     return filePath.split('/').pop() || '';
   }
-
+  
   function handleFilesChange(event: Event) {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
-      selectedFiles = input.files;
+      if (selectedFiles && selectedFiles.length > 0) {
+        selectedFiles = [...selectedFiles, ...Array.from(input.files)];
+      } else {
+        selectedFiles = Array.from(input.files);
+      }
     }
   }
 
   function openUploadModal() {
     showUploadModal = true;
-    selectedFiles = null;
+    selectedFiles = [];
   }
 
   function openStatusModal() {
@@ -121,6 +125,7 @@
     ];
     return combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   })());
+
 </script>
 
 {#if data?.rmp}
@@ -131,73 +136,108 @@
   <!-- Basic Information Card -->
   <div class="card bg-base-100 shadow-xl mb-6">
     <div class="card-body">
-      <h2 class="card-title text-2xl mb-4">General Information</h2>
+      <div class="grid grid-cols-2 gap-4">
+        <h2 class="card-title text-2xl mb-4">General Information</h2>
+        <div class="flex flex-col items-end justify-end">
+          <div>
+            <p class="text-sm text-base-content/70">Status</p>
+                <button 
+                  class="badge {
+                    data.rmp.status === 'Approved' ? 'badge-success' :
+                    data.rmp.status === 'Rejected' ? 'badge-error' :
+                    data.rmp.status === 'Canceled' ? 'badge-neutral' :
+                    'badge-info'
+                  } badge-lg cursor-pointer hover:opacity-80"
+                  onclick={openStatusModal}
+                >
+                  {data.rmp.status}
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 ml-1">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+          </div>
+        </div>
+      </div>
       
       <div class="grid grid-cols-3 gap-4">
         <!-- Column 1: Project & Status Info -->
         <div class="space-y-4">
-             <div>
-            <p class="text-sm text-base-content/70">Status</p>
-            <button 
-              class="badge {
-                data.rmp.status === 'Approved' ? 'badge-success' :
-                data.rmp.status === 'Rejected' ? 'badge-error' :
-                data.rmp.status === 'Canceled' ? 'badge-neutral' :
-                'badge-info'
-              } badge-lg cursor-pointer hover:opacity-80"
-              onclick={openStatusModal}
-            >
-              {data.rmp.status}
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 ml-1">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-              </svg>
-            </button>
-          </div>
+            <!-- <div>
+              <p class="text-sm text-base-content/70">Status</p>
+              <button 
+                class="badge {
+                  data.rmp.status === 'Approved' ? 'badge-success' :
+                  data.rmp.status === 'Rejected' ? 'badge-error' :
+                  data.rmp.status === 'Canceled' ? 'badge-neutral' :
+                  'badge-info'
+                } badge-lg cursor-pointer hover:opacity-80"
+                onclick={openStatusModal}
+              >
+                {data.rmp.status}
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 ml-1">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+            </div> -->
 
           <div>
             <p class="text-sm text-base-content/70">Project Name</p>
-            <p class="font-semibold">{data.rmp.project_name}</p>
+            <p class="font-semibold">{data.rmp.project_name || 'N/A'}</p>
           </div>
 
           <div>
-            <p class="text-sm text-base-content/70">Subcontractor</p>
-            <p class="font-semibold">{data.rmp.subcontractor_name}</p>
+            <p class="text-sm text-base-content/70">Subcontractor Name</p>
+            <p class="font-semibold">{data.rmp.subcontractors?.trade_name || 'N/A'}</p>
+          </div>
+
+          <div>
+            <p class="text-sm text-base-content/70">FEIN</p>
+            <p class="font-semibold">{data.rmp.subcontractors?.fein}</p>
           </div>
 
           <div>
             <p class="text-sm text-base-content/70">Trade Package</p>
-            <p class="font-semibold">{data.rmp.trade_pkg}</p>
+            <p class="font-semibold">{data.rmp.subcontractors?.trade_pkg || 'N/A'}</p>
+          </div>
+
+          <div>
+            <p class="text-sm text-base-content/70">Assigned To</p>
+            <p class="font-semibold">
+              {data.rmp.assigned_user?.full_name || 'N/A'}
+              {data.rmp.assigned_user?.job_title ? ` (${data.rmp.assigned_user.job_title})` : ''}
+            </p>
           </div>
         </div>
 
         <!-- Column 2: Dates & FEIN -->
         <div class="space-y-4">
           <div>
-            <p class="text-sm text-base-content/70">FEIN</p>
-            <p class="font-semibold">{data.rmp.fein}</p>
-          </div>
-
-          <div>
             <p class="text-sm text-base-content/70">Submitted Date</p>
-            <p class="font-semibold">{data.rmp.submitted_date}</p>
+              <p class="font-semibold">
+                {data.rmp.submitted_date ? new Date(data.rmp.submitted_date).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Not set'}
+              </p>
           </div>
 
           <div>
             <p class="text-sm text-base-content/70">Due Date</p>
-            <p class="font-semibold">{data.rmp.due_date || 'Not set'}</p>
+              <p class="font-semibold">
+                {data.rmp.due_date ? new Date(data.rmp.due_date).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Not set'}
+              </p>
           </div>
 
           <div>
             <p class="text-sm text-base-content/70">Completed Date</p>
-            <p class="font-semibold">{data.rmp.completed_date || 'Not completed'}</p>
+              <p class="font-semibold">
+                {data.rmp.completed_date ? new Date(data.rmp.completed_date).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Not completed'}
+              </p>
           </div>
           
           <div>
             <p class="text-sm text-base-content/70">Created By</p>
-            {#if data.rmp.creator_name}
-              <p class="font-semibold">{data.rmp.creator_name}</p>
-              {#if data.rmp.creator_job_title}
-                <p class="text-xs italic text-base-content/70">{data.rmp.creator_job_title}</p>
+            {#if data.rmp.user_profiles?.full_name}
+              <p class="font-semibold">{data.rmp.user_profiles.full_name}</p>
+              {#if data.rmp.user_profiles.job_title}
+                <p class="text-xs italic text-base-content/70">{data.rmp.user_profiles.job_title}</p>
               {/if}
             {:else}
               <p class="font-semibold text-base-content/50">System</p>
@@ -210,13 +250,13 @@
           <div>
             <p class="text-sm text-base-content/70">Current EMR</p>
             <p class="font-semibold text-lg {
-              parseFloat(data.rmp.current_emr) <= 1.0 ? 'text-success' : 'text-warning'
-            }">{data.rmp.current_emr}</p>
+              parseFloat(data.rmp.subcontractors?.current_emr) <= 1.0 ? 'text-success' : 'text-warning'
+            }">{data.rmp.subcontractors?.current_emr}</p>
           </div>
 
           <div>
             <p class="text-sm text-base-content/70">EMR Expiration</p>
-            <p class="font-semibold">{data.rmp.emr_expiration}</p>
+            <p class="font-semibold">{data.rmp.subcontractors?.emr_expiration}</p>
           </div>
 
           <div>
@@ -284,21 +324,41 @@
             <tbody>
               {#each data.documents as doc}
                 <tr>
-                  <td>{doc.document_name}</td>
-                  <td>{doc.uploaded_by}</td>
+                  <td>{doc.file_name}</td>
+                  <td>{doc.user_profiles?.full_name || doc.uploaded_by}</td>
                   <td>{new Date(doc.uploaded_at).toLocaleString()}</td>
                   <td>{(doc.file_size / 1024 / 1024).toFixed(2)} MB</td>
                   <td>
-                    <a 
-                      href="/uploads/rmps/{getFilenameFromPath(doc.file_path)}" 
-                      download={doc.document_name}
+                    <button
                       class="btn btn-sm btn-ghost"
+                      type="button"
+                      onclick={async () => {
+                        try {
+                          const res = await fetch(`/srmp/${data.rmp.id}/documents/${doc.id}`);
+                          const result = await res.json();
+                          if (result.signedUrl) {
+                            // Create a temporary link and click it to start download
+                            const link = document.createElement('a');
+                            link.href = result.signedUrl;
+                            link.target = '_blank';
+                            link.rel = 'noopener noreferrer';
+                            link.download = doc.file_name || 'document';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          } else {
+                            alert('Failed to get download link.');
+                          }
+                        } catch (err) {
+                          alert('Error fetching download link.');
+                        }
+                      }}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
                       </svg>
                       Download
-                    </a>
+                    </button>
                   </td>
                 </tr>
               {/each}
@@ -317,17 +377,6 @@
       <h2 class="card-title text-xl mb-4">Activity Timeline</h2>
       {#if canAddContent}
         <div>
-          {#if commentFormError}
-            <div class="alert alert-error mb-3">
-              <span>{commentFormError}</span>
-            </div>
-          {/if}
-          {#if commentFormSuccess}
-            <div class="alert alert-success mb-3">
-              <span>{commentFormSuccess}</span>
-            </div>
-          {/if}
-
           <form method="POST" action="?/addComment" use:enhance={handleCommentEnhance}>
             <div class="form-control mb-3">
               <label class="label" for="comment-textarea">
@@ -394,10 +443,10 @@
                     {/if}
                   </div>
                   <div class="text-right text-sm text-base-content/70">
-                    {#if entry.full_name}
-                      <p class="font-semibold">{entry.full_name}</p>
-                      {#if entry.job_title}
-                        <p class="text-xs italic">{entry.job_title}</p>
+                    {#if entry.user_profiles?.full_name}
+                      <p class="font-semibold">{entry.user_profiles?.full_name}</p>
+                      {#if entry.user_profiles?.job_title}
+                        <p class="text-xs italic">{entry.user_profiles?.job_title}</p>
                       {/if}
                     {:else}
                       <p>System</p>
@@ -415,10 +464,10 @@
                     <p class="text-sm mt-1 whitespace-pre-wrap">{comment.comment}</p>
                   </div>
                   <div class="text-right text-sm text-base-content/70">
-                    {#if comment.full_name}
-                      <p class="font-semibold">{comment.full_name}</p>
-                      {#if comment.job_title}
-                        <p class="text-xs italic">{comment.job_title}</p>
+                    {#if comment.user_profiles?.full_name}
+                      <p class="font-semibold">{comment.user_profiles?.full_name}</p>
+                      {#if comment.user_profiles?.job_title}
+                        <p class="text-xs italic">{comment.user_profiles?.job_title}</p>
                       {/if}
                     {:else}
                       <p>Unknown User</p>
@@ -457,14 +506,20 @@
     <h3 class="font-bold text-lg mb-4">Update RMP Status</h3>
     
     <form method="POST" action="?/updateStatus" use:enhance={() => {
-      updatingStatus = true;
-      return async ({ update }) => {
-        await update();
-        updatingStatus = false;
-        showStatusModal = false;
-        statusNotes = '';
-      };
-    }}>
+        updatingStatus = true;
+        return async ({ update }) => {
+          try {
+            await update();
+            await import('$app/navigation').then(mod => mod.invalidateAll());
+          } catch (err) {
+            console.error('Status change enhance exception:', err);
+          } finally {
+            updatingStatus = false;
+            showStatusModal = false;
+            statusNotes = '';
+          }
+        };
+      }}>
       <div class="form-control mb-4">
         <label class="label" for="status-select">
           <span class="label-text">Status</span>
@@ -520,8 +575,13 @@
           type="submit" 
           class="btn btn-primary"
           disabled={updatingStatus || selectedStatus === data.rmp.status}
-        >
-          {updatingStatus ? 'Updating...' : 'Update Status'}
+          >
+            {#if updatingStatus}
+              <span class="loading loading-spinner loading-sm text-base-content"></span>
+              <span class="ml-2">Updating...</span>
+            {:else}
+              Update Status
+            {/if}
         </button>
       </div>
     </form>
@@ -537,12 +597,20 @@
     
     <form method="POST" action="?/uploadDocuments" enctype="multipart/form-data" use:enhance={() => {
             uploading = true;
-            return async ({ update }) => {
-              await update();
+            return async ({ update, formElement }) => {
+              // Ensure files are sent as FormData
+              if (selectedFiles && selectedFiles.length > 0) {
+                const formData = new FormData(formElement);
+                selectedFiles.forEach(file => formData.append('documents', file));
+                // SvelteKit enhance expects: await update({ formData })
+                await update({ formData });
+              } else {
+                await update();
+              }
               await import('$app/navigation').then(mod => mod.invalidateAll());
               uploading = false;
               showUploadModal = false;
-              selectedFiles = null;
+              selectedFiles = [];
             };
     }}>
       <div class="form-control mb-4">
@@ -564,11 +632,11 @@
           <div class="label">
             <span class="label-text-alt">
               {selectedFiles.length} file(s) selected
-              ({(Array.from(selectedFiles).reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} MB total)
+              ({(selectedFiles.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} MB total)
             </span>
           </div>
           <div class="mt-2 space-y-1">
-            {#each Array.from(selectedFiles) as file}
+            {#each selectedFiles as file}
               <div class="text-xs text-base-content/70">
                 • {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
               </div>
@@ -588,10 +656,15 @@
         </button>
         <button 
           type="submit" 
-          class="btn btn-primary"
+          class="btn btn-primary flex items-center"
           disabled={uploading || !selectedFiles || selectedFiles.length === 0}
         >
-          {uploading ? 'Uploading...' : 'Upload'}
+          {#if uploading}
+            <span class="loading loading-spinner loading-sm mr-2"></span>
+            Uploading...
+          {:else}
+            Upload
+          {/if}
         </button>
       </div>
     </form>

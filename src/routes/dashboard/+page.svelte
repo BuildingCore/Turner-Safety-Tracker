@@ -140,8 +140,12 @@
         </div>
     </div>
 
+
     <!-- Add Subcontractor Button -->
     <div class="w-3/4 mt-6 flex justify-end">
+      <a href="/srmp" class="mr-6">
+                <button class="btn btn-error">Safety Risk Management Plans</button>
+      </a>
       <button class="btn btn-primary" onclick={() => openAddSubcontractorModal()}>
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -252,7 +256,25 @@
                   <td>{yearData.manhours.toLocaleString()}</td>
                 {/each}
                 <td>{sub.current_emr}</td>
-                <td>{sub.emr_expiration}</td>
+                <td>
+                  {sub.submitted_date ? new Date(sub.submitted_date).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
+                </td>
+                <td>
+                  {sub.due_date ? new Date(sub.due_date).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
+                </td>
+                <td>
+                  {sub.emr_expiration
+                    ? new Date(sub.emr_expiration).toLocaleString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        // fractionalSecondDigits: 0
+                      })
+                    : ''}
+                </td>
                 <td>
                   <div class="flex gap-1">
                     <button class="btn btn-xs btn-ghost" onclick={() => startEditing(sub.id)} aria-label="Edit subcontractor">

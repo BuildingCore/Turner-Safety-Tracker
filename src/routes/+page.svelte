@@ -6,14 +6,14 @@
 </script>
 
 <div class="grid grid-cols-1 place-items-center gap-6 mt-20">
-        <h1 class="text-2xl font-bold">Welcome Turner to the Safety Tracker</h1>
+        <h1 class="text-2xl font-bold">Welcome Turner Procurement Navigator</h1>
         
         {#if data.session}
             <a href="/dashboard">
                 <button class="btn btn-secondary">Subcontractor Safety Dashboard</button>
             </a>
-            <a href="/srmp">
-                <button class="btn btn-error">Safety Risk Management Plan</button>
+            <a href="https://sar.tcco.com">
+                <button class="btn btn-info">Subcontractor Approval Report</button>
             </a>
         {:else}
             <div class="text-center">

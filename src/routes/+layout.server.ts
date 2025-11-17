@@ -10,7 +10,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		const { data, error } = await supabase
 			.from('user_profiles')
 			.select('*')
-			.eq('user_id', user.id)
+			.eq('id', user.id)
 			.single();
 		if (error) {
 			console.error('Failed to fetch user profile:', error.message);

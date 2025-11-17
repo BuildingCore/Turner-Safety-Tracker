@@ -10,32 +10,29 @@
   const breadcrumbs = $derived(() => {
     const path = $page.url.pathname;
     const segments = path.split('/').filter(Boolean);
-    
     // Don't show breadcrumbs on home page
     if (segments.length === 0) return [];
-    
     const crumbs: BreadcrumbItem[] = [
       { label: 'Home', href: '/' }
     ];
-    
+    // If on /srmp or any subroute, add Dashboard before SRMP
+    if (segments[0] === 'srmp') {
+      crumbs.push({ label: 'Safety Dashboard', href: '/dashboard' });
+    }
     let currentPath = '';
-    
     segments.forEach((segment, index) => {
       currentPath += `/${segment}`;
-      
       // Use custom label if available, otherwise format segment
       const label = breadcrumbLabels[currentPath] || 
         segment
           .split('-')
           .map(word => word.charAt(0).toUpperCase() + word.slice(1))
           .join(' ');
-      
       crumbs.push({
         label,
         href: currentPath
       });
     });
-    
     return crumbs;
   });
 </script>

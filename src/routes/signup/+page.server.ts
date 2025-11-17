@@ -49,7 +49,6 @@ export const actions: Actions = {
 			const { error: profileError } = await supabase
 				.from('user_profiles')
 				.insert({
-					id: crypto.randomUUID(),
 					user_id: data.user.id,
 					full_name: fullName,
 					job_title: jobTitle

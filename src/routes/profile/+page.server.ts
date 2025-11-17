@@ -12,11 +12,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Fetch profile from Supabase
 	let profile = null;
 	if (user) {
-		const { data, error } = await supabase
-			.from('user_profiles')
-			.select('*')
+			const { data, error } = await supabase
+				.from('user_profiles')
+				.select('*')
 			.eq('user_id', user.id)
-			.single();
+				.single();
 		if (error) {
 			console.error('Failed to fetch user profile:', error.message);
 		} else {
@@ -29,9 +29,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	updateProfile: async ({ request, locals }) => {
-		const { user } = await locals.safeGetSession();
+		const { session, user } = await locals.safeGetSession();
 		if (!user) {
 			return fail(401, { error: 'You must be logged in to update your profile' });
+		}
+		// Fetch user_profile by auth id
+			const { data: profile } = await supabase
+				.from('user_profiles')
+				.select('id')
+				.eq('id', user.id)
+				.single();
+		if (!profile) {
+			return fail(404, { error: 'User profile not found' });
 		}
 		const formData = await request.formData();
 		const fullName = formData.get('fullName') as string;
