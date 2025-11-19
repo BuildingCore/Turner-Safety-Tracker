@@ -6,7 +6,7 @@
 </script>
 
 <div class="grid grid-cols-1 place-items-center gap-6 mt-20">
-        <h1 class="text-2xl font-bold">Welcome Turner Procurement Navigator</h1>
+        <h1 class="text-2xl font-bold">Welcome to the Turner Procurement Navigator</h1>
         
         {#if data.session}
             <a href="/dashboard">
